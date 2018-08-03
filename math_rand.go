@@ -5,7 +5,7 @@ import "math/rand"
 // PseudoRandomBytes returns the requested number of bytes using math/rand (which is not cryptographically secure)
 func PseudoRandomBytes(rand *rand.Rand, length int) []byte {
 
-	var randomBytes = make([]byte, length)
+	randomBytes := make([]byte, length)
 
 	_, err := rand.Read(randomBytes)
 	if err != nil {
