@@ -3,19 +3,18 @@ package random
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"fmt"
 	"math"
 	"math/big"
 	"math/bits"
-	"strconv"
+	"strings"
 )
 
-func SecureRandomStringChars(length int, availableCharBytes []byte) string {
+func SecureRandomStringBytes2(length int, availableCharBytes []byte) string {
 
 	// Check length
 	availableCharLength := len(availableCharBytes)
-	if availableCharLength == 0 || availableCharLength > math.MaxInt64 {
-		panic("availableCharBytes length must be greater than 0 and less than or equal to 9223372036854775807")
+	if availableCharLength == 0 {
+		panic("availableCharBytes must not be empty")
 	}
 
 	// bitsNeeded is how many bits are needed to represent all available character options.
@@ -26,16 +25,14 @@ func SecureRandomStringChars(length int, availableCharBytes []byte) string {
 
 	// bitsNeededMaxLength is how many options could be represented max by bitsNeeded.
 	// It will always be greater than or equal to the length of the available character options.
-	var bitsNeededMaxLength uint64 = 1 << uint64(bitsNeeded)
+	var bitsNeededMaxLength uint8 = 1 << uint8(bitsNeeded)
 
 	// indicesPerUint64 is how many different letter indices can be found using a single uint64
-	indicesPerUint64 := 64 / int(bitsNeeded)
-	fmt.Println("init", length, availableCharLength, bitsNeeded, bitsNeededMaxLength, indicesPerUint64)
+	indicesPerUint64 := 8 / int(bitsNeeded)
 
 	// bitMask is a mask (ie: 11111) that will allow for bitsNeededOptionsLength permutations,
 	// and will be used in bitwise operations against a random input.
 	bitMask := bitsNeededMaxLength - 1
-	fmt.Println("mask", strconv.FormatInt(int64(bitMask), 2))
 
 	// The resulting string
 	result := make([]byte, length)
@@ -45,19 +42,85 @@ func SecureRandomStringChars(length int, availableCharBytes []byte) string {
 	for {
 
 		// bitBufferSize is the length still needed times bits needed per character.
-		// Increase bitBufferSize when there is overflow potential by double that potential, to minimize system calls.
-		// For example, if there are 5 available characters, then our mask allows for 8 max characters, which gives 37.5% chance of a missed hit.
-		// So for length desired of 20 with 5 characters, instead of getting 60 bits of random data, get 105 bits of random data.
-		bitBufferSize := int(float64(length-completed) * float64(bitsNeeded) * (3.0 - 2.0*float64(availableCharLength)/float64(bitsNeededMaxLength)))
-		bitBlockCount := int(math.Ceil(float64(bitBufferSize) / float64(bitsNeeded)))
-		fmt.Println("buf", bitBufferSize)
+		// When the bitMask can potentially overflow the available character options,
+		// increase bitBufferSize by double or more of that potential, to minimize system calls.
+		// For example, if there are 5 available characters, then our mask allows for 8 max characters,
+		// which gives 37.5% chance of a missed hit. So for length desired of 20 with 5 characters
+		// (mask is 3 bits), instead of getting 60 bits of random data, get 105 bits of random data.
+		randomBits := SecureRandomBytes(length / indicesPerUint64)
 
-		randomBits := SecureRandomBits(bitBufferSize, int(bitsNeeded), binary.LittleEndian)
-		bufferSize := len(randomBits)
-		for _, b := range randomBits {
-			fmt.Printf("%064s ", strconv.FormatUint(uint64(b), 2))
+		// Find which uint64 in randomBits to use
+		for attempted := 0; attempted < length; attempted++ {
+
+			// Find random byte index
+			randIdx := attempted / indicesPerUint64
+
+			// Mask bytes to get an index into the character slice
+			charIdx := int(randomBits[randIdx] & bitMask)
+
+			// Right shift over the uint64 to get rid of bits used
+			randomBits[randIdx] >>= bitsNeeded
+
+			// If charIdx is within availableCharLength, add that character to the random string.
+			// If not, we must ignore this randIdx in order to maintain equal probability.
+			if charIdx < availableCharLength {
+				result[completed] = availableCharBytes[charIdx]
+				completed++
+				if completed == length {
+					return string(result)
+				}
+			}
 		}
-		fmt.Println("\nbuf size", bufferSize)
+	}
+}
+
+func SecureRandomStringBytes(length int, availableCharBytes []byte) string {
+
+	// Check length
+	availableCharLength := len(availableCharBytes)
+	if availableCharLength == 0 {
+		panic("availableCharBytes must not be empty")
+	}
+
+	// bitsNeeded is how many bits are needed to represent all available character options.
+	// bitsNeeded is 1 less than the length because slices are zero based and the
+	// highest bit value (which is the bitMask) would access the last index in the
+	// available character slice (or beyond it slightly, which will be skipped).
+	bitsNeeded := uint64(bits.Len64(uint64(availableCharLength) - 1))
+
+	// If there is only 1 option
+	if bitsNeeded == 0 {
+		return strings.Repeat(string(availableCharBytes[0]), length)
+	}
+
+	// bitsNeededMaxLength is how many options could be represented max by bitsNeeded.
+	// It will always be greater than or equal to the length of the available character options.
+	var bitsNeededMaxLength uint64 = 1 << uint64(bitsNeeded)
+
+	// indicesPerUint64 is how many different letter indices can be found using a single uint64
+	indicesPerUint64 := 64 / int(bitsNeeded)
+
+	// bitMask is a mask (ie: 11111) that will allow for bitsNeededOptionsLength permutations,
+	// and will be used in bitwise operations against a random input.
+	bitMask := bitsNeededMaxLength - 1
+
+	// The resulting string
+	result := make([]byte, length)
+	completed := 0
+
+	// Create the random string
+	for overflowMultiplier := stringMaskOverflowMultiplier; ; overflowMultiplier += 1.0 {
+
+		// bitBufferSize is the length still needed times bits needed per character.
+		// When the bitMask can potentially overflow the available character options,
+		// increase bitBufferSize by double or more of that potential, to minimize system calls.
+		// For example, if there are 5 available characters, then our mask allows for 8 max characters,
+		// which gives 37.5% chance of a missed hit. So for length desired of 20 with 5 characters
+		// (mask is 3 bits), instead of getting 60 bits of random data, get 105 bits of random data.
+		bitBufferSize := int(float64(length-completed) * float64(bitsNeeded) *
+			((overflowMultiplier + 1.0) - overflowMultiplier*float64(availableCharLength)/float64(bitsNeededMaxLength)))
+
+		randomBits, bitBlockCount := SecureRandomBitBlocks(bitBufferSize, int(bitsNeeded), binary.LittleEndian)
 
 		// Find which uint64 in randomBits to use
 		for attempted := 0; attempted < bitBlockCount; attempted++ {
@@ -67,52 +130,113 @@ func SecureRandomStringChars(length int, availableCharBytes []byte) string {
 
 			// Mask bytes to get an index into the character slice
 			charIdx := int(randomBits[randIdx] & bitMask)
-			fmt.Println("work", attempted, randIdx, strconv.FormatUint(uint64(randomBits[randIdx]), 2), strconv.FormatUint(uint64(charIdx), 2))
 
 			// Right shift over the uint64 to get rid of bits used
 			randomBits[randIdx] >>= bitsNeeded
 
 			// If charIdx is within availableCharLength, add that character to the random string.
 			// If not, we must ignore this randIdx in order to maintain equal probability.
-			if charIdx < availableCharLength && charIdx%2 == 0 {
+			if charIdx < availableCharLength {
 				result[completed] = availableCharBytes[charIdx]
 				completed++
-				fmt.Println("good", attempted, randIdx, strconv.FormatUint(uint64(randomBits[randIdx]), 2), strconv.FormatUint(uint64(charIdx), 2), string(availableCharBytes[charIdx]))
 				if completed == length {
 					return string(result)
 				}
 			}
 		}
-
-		//for randIdx := 0; randIdx < bufferSize ; randIdx++ {
-		//
-		//	for attempted := 0; attempted < indicesPerUint64; attempted++ {
-		//
-		//		// Mask bytes to get an index into the character slice
-		//		charIdx := int(randomBits[randIdx] & bitMask)
-		//		fmt.Println("work", randIdx, strconv.FormatUint(uint64(randomBits[randIdx]), 2), strconv.FormatUint(uint64(charIdx), 2))
-		//
-		//		// Right shift over the uint64 to get rid of bits used
-		//		randomBits[randIdx] >>= bitsNeeded
-		//
-		//		// If charIdx is within availableCharLength, add that character to the random string.
-		//		// If not, we must ignore this randIdx in order to maintain equal probability.
-		//		if charIdx < availableCharLength && charIdx%2 == 0 {
-		//			result[completed] = availableCharBytes[charIdx]
-		//			completed++
-		//			fmt.Println("good", randIdx, strconv.FormatUint(uint64(randomBits[randIdx]), 2), strconv.FormatUint(uint64(charIdx), 2), string(availableCharBytes[charIdx]))
-		//			if completed == length {
-		//				return string(result)
-		//			}
-		//		}
-		//	}
-		//}
 	}
+}
+
+func SecureRandomStringRunes(length int, availableCharRunes []rune) string {
+
+	// Check length
+	availableCharLength := len(availableCharRunes)
+	if availableCharLength == 0 {
+		panic("availableCharBytes must not be empty")
+	}
+
+	// bitsNeeded is how many bits are needed to represent all available character options.
+	// bitsNeeded is 1 less than the length because slices are zero based and the
+	// highest bit value (which is the bitMask) would access the last index in the
+	// available character slice (or beyond it slightly, which will be skipped).
+	bitsNeeded := uint64(bits.Len64(uint64(availableCharLength) - 1))
+
+	// If there is only 1 option
+	if bitsNeeded == 0 {
+		return strings.Repeat(string(availableCharRunes[0]), length)
+	}
+
+	// bitsNeededMaxLength is how many options could be represented max by bitsNeeded.
+	// It will always be greater than or equal to the length of the available character options.
+	var bitsNeededMaxLength uint64 = 1 << uint64(bitsNeeded)
+
+	// indicesPerUint64 is how many different letter indices can be found using a single uint64
+	indicesPerUint64 := 64 / int(bitsNeeded)
+
+	// bitMask is a mask (ie: 11111) that will allow for bitsNeededOptionsLength permutations,
+	// and will be used in bitwise operations against a random input.
+	bitMask := bitsNeededMaxLength - 1
+
+	// The resulting string
+	result := make([]rune, length)
+	completed := 0
+
+	// Create the random string
+	for overflowMultiplier := stringMaskOverflowMultiplier; ; overflowMultiplier += 1.0 {
+
+		// bitBufferSize is the length still needed times bits needed per character.
+		// When the bitMask can potentially overflow the available character options,
+		// increase bitBufferSize by double or more of that potential, to minimize system calls.
+		// For example, if there are 5 available characters, then our mask allows for 8 max characters,
+		// which gives 37.5% chance of a missed hit. So for length desired of 20 with 5 characters
+		// (mask is 3 bits), instead of getting 60 bits of random data, get 105 bits of random data.
+		bitBufferSize := int(float64(length-completed) * float64(bitsNeeded) *
+			((overflowMultiplier + 1.0) - overflowMultiplier*float64(availableCharLength)/float64(bitsNeededMaxLength)))
+
+		randomBits, bitBlockCount := SecureRandomBitBlocks(bitBufferSize, int(bitsNeeded), binary.LittleEndian)
+
+		// Find which uint64 in randomBits to use
+		for attempted := 0; attempted < bitBlockCount; attempted++ {
+
+			// Find random byte index
+			randIdx := attempted / indicesPerUint64
+
+			// Mask bytes to get an index into the character slice
+			charIdx := int(randomBits[randIdx] & bitMask)
+
+			// Right shift over the uint64 to get rid of bits used
+			randomBits[randIdx] >>= bitsNeeded
+
+			// If charIdx is within availableCharLength, add that character to the random string.
+			// If not, we must ignore this randIdx in order to maintain equal probability.
+			if charIdx < availableCharLength {
+				result[completed] = availableCharRunes[charIdx]
+				completed++
+				if completed == length {
+					return string(result)
+				}
+			}
+		}
+	}
+}
+
+// stringMaskOverflowMultiplier controls how much extra random data to pull with crypto/rand
+// when the bit mask allows for more possibilities than there are available character options.
+// It can be any number equal or greater than 0. Zero means do not pull any extract random bytes,
+// while a value of 2 would mean that if there is are 25% more possibilities allowed by the mark
+// than there are available character options, pull 50% more random data.
+// The point of pulling more random data than possibly needed is to minimize the number of
+// system calls that are made with crypto/rand, since those are costly.
+var stringMaskOverflowMultiplier float64 = 1.5
+
+func SecureRandomBits(bitLength int, order binary.ByteOrder) []uint64 {
+	bitz, _ := SecureRandomBitBlocks(bitLength, 1, order)
+	return bitz
 }
 
 // usableBlockSize is number of bits that will be consumed at a time (for example, if using a mask to consume 3 bits a time).
 // bitLength should be a multiple of usableBlockSize, otherwise more bits will be returned than requested.
-func SecureRandomBits(bitLength, usableBlockSize int, order binary.ByteOrder) []uint64 {
+func SecureRandomBitBlocks(bitLength, usableBlockSize int, order binary.ByteOrder) ([]uint64, int) {
 
 	// indicesPerUint64 is how many different usable blocks of bits a single uint64 can contain
 	indicesPerUint64 := 64 / usableBlockSize
@@ -145,12 +269,14 @@ func SecureRandomBits(bitLength, usableBlockSize int, order binary.ByteOrder) []
 		panic(err) // Impossible
 	}
 
-	// TODO: if usableBitsPer64 is less than 56, it is
-	// possible to use fewer than 8 bytes (of random data) per uint64
+	// TODO: if (64 % usableBlockSize) is less than 56, it is
+	// possible to use fewer than 8 bytes (of random data) per uint64.
 	for i := range randomBits {
 		randomBits[i] = order.Uint64(randomBytes[8*i:])
 	}
-	return randomBits
+
+	// Return randomBits and the number of usable bit blocks it contains
+	return randomBits, indicesPerUint64*fullIndexByteCount + (8 * remainderByteCount / usableBlockSize)
 }
 
 func SecureRandomBytes(length int) []byte {
