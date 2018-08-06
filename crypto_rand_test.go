@@ -1,16 +1,10 @@
 package random
 
 import (
+	math_rand "math/rand"
 	"strings"
 	"testing"
 )
-
-func BenchmarkNaiveSecureRandomStringBytes(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		naiveSecureRandomStringChars(40, string(Alphabet))
-	}
-}
 
 func BenchmarkSecureRandomStringBytes(b *testing.B) {
 	b.ReportAllocs()
@@ -54,37 +48,9 @@ func TestSecureRandomStringRunes(t *testing.T) {
 	}
 }
 
-func naiveSecureRandomStringChars(length int, availableCharBytes string) string {
-
-	// Compute bitMask
-	availableCharLength := len(availableCharBytes)
-	if availableCharLength == 0 || availableCharLength > 256 {
-		panic("availableCharBytes length must be greater than 0 and less than or equal to 256")
-	}
-	var bitLength byte
-	var bitMask byte
-	for bits := availableCharLength - 1; bits != 0; {
-		bits = bits >> 1
-		bitLength++
-	}
-	bitMask = 1<<bitLength - 1
-
-	// Compute bufferSize: length + 2*(1 - availCharLength/bitMask+1)
-	bufferSize := length + int(2.0*(1.0-(float64(availableCharLength)/float64(bitMask+1))))
-
-	// Create random string
-	result := make([]byte, length)
-	for i, j, randomBytes := 0, 0, []byte{}; i < length; j++ {
-		if j%bufferSize == 0 {
-			// Random byte buffer is empty, get a new one
-			randomBytes = SecureRandomBytes(bufferSize)
-		}
-		// Mask bytes to get an index into the character slice
-		if idx := int(randomBytes[j%length] & bitMask); idx < availableCharLength {
-			result[i] = availableCharBytes[idx]
-			i++
-		}
-	}
-
-	return string(result)
+func TestSecureRandSource(t *testing.T) {
+	SecureRandSource.Uint64()
+	SecureRandSource.Int63()
+	SecureRandSource.Seed(1)
+	math_rand.New(SecureRandSource)
 }

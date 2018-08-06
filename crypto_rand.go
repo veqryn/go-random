@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 	"math/bits"
+	math_rand "math/rand"
 	"strings"
 )
 
@@ -21,7 +22,33 @@ var (
 	AlphabetBytes              = []byte(Alphabet)
 	AlphabetUpperAndLowerBytes = []byte(AlphabetUpperAndLower)
 	AlphaNumericBytes          = []byte(AlphaNumeric)
+
+	// SecureRandSource uses crypto/rand, is thread-safe, and implements math/rand.Source64.
+	// To use, call math_rand.New(random.SecureRandSource) to get a *math/rand.Rand.
+	SecureRandSource math_rand.Source64 = secureRandSource{}
 )
+
+// secureRandSource is an empty struct that implements math/rand.Source64
+type secureRandSource struct{}
+
+// Uint64 allows implementation of math/rand.Source64
+func (s secureRandSource) Uint64() uint64 {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		panic("random: " + err.Error()) // Impossible
+	}
+	return binary.LittleEndian.Uint64(b)
+}
+
+// Uint63 allows implementation of math/rand.Source
+func (s secureRandSource) Int63() int64 {
+	return int64(s.Uint64() & ((1 << 63) - 1))
+}
+
+// Seed allows implementation of math/rand.Source
+func (s secureRandSource) Seed(seed int64) {
+	// no-op
+}
 
 // SecureRandomStringBytes uses crypto/rand to return a random string of given
 // length made from the available character bytes.
