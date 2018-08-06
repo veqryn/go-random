@@ -10,23 +10,9 @@ import (
 	"strings"
 )
 
-const (
-	Hex                   = "0123456789abcdef"
-	Alphabet              = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	AlphabetUpperAndLower = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-	AlphaNumeric          = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-)
-
-var (
-	HexBytes                   = []byte(Hex)
-	AlphabetBytes              = []byte(Alphabet)
-	AlphabetUpperAndLowerBytes = []byte(AlphabetUpperAndLower)
-	AlphaNumericBytes          = []byte(AlphaNumeric)
-
-	// SecureRandSource uses crypto/rand, is thread-safe, and implements math/rand.Source64.
-	// To use, call math_rand.New(random.SecureRandSource) to get a *math/rand.Rand.
-	SecureRandSource math_rand.Source64 = secureRandSource{}
-)
+// SecureRandSource uses crypto/rand, is thread-safe, and implements math/rand.Source64.
+// To use, call math_rand.New(random.SecureRandSource) to get a *math/rand.Rand.
+var SecureRandSource math_rand.Source64 = secureRandSource{}
 
 // secureRandSource is an empty struct that implements math/rand.Source64
 type secureRandSource struct{}
@@ -50,9 +36,15 @@ func (s secureRandSource) Seed(seed int64) {
 	// no-op
 }
 
+// SecureRandomString uses crypto/rand to return a random hex string of given length.
+// If length is negative this will panic.
+func SecureRandomString(length int) string {
+	return SecureRandomStringBytes(length, HexBytes)
+}
+
 // SecureRandomStringBytes uses crypto/rand to return a random string of given
 // length made from the available character bytes.
-// If the available character bytes slice is empty or greater than 256 in length, this will panic.
+// If the available character bytes slice is empty or greater than 256 in length, or length is negative, this will panic.
 // This function is particularly efficient when the length of the availableCharBytes
 // slice is a power of two.
 func SecureRandomStringBytes(length int, availableCharBytes []byte) string {
@@ -189,7 +181,7 @@ func secureRandomStringBytesComplex(length, availableCharLength int, availableCh
 
 // SecureRandomStringRunes uses crypto/rand to return a random string of given
 // length made from the available character runes.
-// If the available character bytes slice is empty, this will panic.
+// If the available character runes slice is empty, or length is negative, this will panic.
 // This function is particularly efficient when the length of the availableCharRunes
 // slice is a power of two.
 func SecureRandomStringRunes(length int, availableCharRunes []rune) string {
@@ -217,7 +209,7 @@ func SecureRandomStringRunes(length int, availableCharRunes []rune) string {
 
 	// bitsNeededMaxLength is how many options could be represented max by bitsNeeded.
 	// It will always be greater than or equal to the length of the available character options.
-	var bitsNeededMaxLength uint64 = 1 << uint64(bitsNeeded)
+	var bitsNeededMaxLength uint64 = 1 << bitsNeeded
 
 	// indicesPerUint64 is how many different letter indices can be found using a single uint64
 	indicesPerUint64 := 64 / int(bitsNeeded)

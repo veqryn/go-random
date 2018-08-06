@@ -1,24 +1,36 @@
-package random
+package random_test
 
 import (
 	math_rand "math/rand"
 	"strings"
 	"testing"
+
+	"github.com/veqryn/go-random"
 )
 
 func BenchmarkSecureRandomStringBytes(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		SecureRandomStringBytes(40, AlphabetBytes)
+		random.SecureRandomStringBytes(40, random.AlphabetBytes)
 	}
 }
 
 func BenchmarkSecureRandomStringRunes(b *testing.B) {
 	b.ReportAllocs()
-	runes := []rune(string(Alphabet))
+	runes := []rune(string(random.Alphabet))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		SecureRandomStringRunes(40, runes)
+		random.SecureRandomStringRunes(40, runes)
+	}
+}
+
+func TestSecureRandomString(t *testing.T) {
+	t.Parallel()
+	for length := 0; length <= 128; length++ {
+		result := random.SecureRandomString(length)
+		if len(result) != length {
+			t.Errorf("Expecting length %d; Got: %d", length, len(result))
+		}
 	}
 }
 
@@ -27,7 +39,7 @@ func TestSecureRandomStringBytes(t *testing.T) {
 	for chars := 1; chars <= 256; chars++ {
 		bytes := []byte(strings.Repeat("x", chars))
 		for length := 0; length <= 128; length++ {
-			result := SecureRandomStringBytes(length, bytes)
+			result := random.SecureRandomStringBytes(length, bytes)
 			if len(result) != length {
 				t.Errorf("Expecting length %d; Got: %d", length, len(result))
 			}
@@ -40,7 +52,7 @@ func TestSecureRandomStringRunes(t *testing.T) {
 	for chars := 1; chars <= 300; chars++ {
 		runes := []rune(strings.Repeat("x", chars))
 		for length := 0; length <= 128; length++ {
-			result := SecureRandomStringRunes(length, runes)
+			result := random.SecureRandomStringRunes(length, runes)
 			if len(result) != length {
 				t.Errorf("Expecting length %d; Got: %d", length, len(result))
 			}
@@ -49,8 +61,8 @@ func TestSecureRandomStringRunes(t *testing.T) {
 }
 
 func TestSecureRandSource(t *testing.T) {
-	SecureRandSource.Uint64()
-	SecureRandSource.Int63()
-	SecureRandSource.Seed(1)
-	math_rand.New(SecureRandSource)
+	random.SecureRandSource.Uint64()
+	random.SecureRandSource.Int63()
+	random.SecureRandSource.Seed(1)
+	math_rand.New(random.SecureRandSource)
 }
