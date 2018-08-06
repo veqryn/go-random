@@ -1,87 +1,57 @@
 package random
 
 import (
+	"strings"
 	"testing"
-)
-
-var (
-	runes1  = []rune("0")
-	runes2  = []rune("01")
-	runes10 = []rune("0123456789")
-	runes16 = []rune("0123456789abcdef")
-	runes26 = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	runes32 = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ012345")
-	runes52 = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
-	runes62 = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
-	runes64 = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
-	bytes1  = []byte(string(runes1))
-	bytes2  = []byte(string(runes2))
-	bytes10 = []byte(string(runes10))
-	bytes16 = []byte(string(runes16))
-	bytes26 = []byte(string(runes26))
-	bytes32 = []byte(string(runes32))
-	bytes52 = []byte(string(runes52))
-	bytes62 = []byte(string(runes62))
-	bytes64 = []byte(string(runes64))
 )
 
 func BenchmarkNaiveSecureRandomStringBytes(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		naiveSecureRandomStringChars(40, string(bytes26))
-	}
-}
-
-func BenchmarkSecureRandomStringBytes2(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		SecureRandomStringBytes2(40, bytes26)
+		naiveSecureRandomStringChars(40, string(Alphabet))
 	}
 }
 
 func BenchmarkSecureRandomStringBytes(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		SecureRandomStringBytes(40, bytes26)
+		SecureRandomStringBytes(40, AlphabetBytes)
 	}
 }
 
 func BenchmarkSecureRandomStringRunes(b *testing.B) {
 	b.ReportAllocs()
+	runes := []rune(string(Alphabet))
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		SecureRandomStringRunes(40, runes26)
+		SecureRandomStringRunes(40, runes)
 	}
-}
-
-func TestSecureRandomStringBytes2(t *testing.T) {
-	t.Parallel()
-	t.Log(SecureRandomStringBytes2(64, bytes16))
 }
 
 func TestSecureRandomStringBytes(t *testing.T) {
 	t.Parallel()
-	t.Log(SecureRandomStringBytes(64, bytes1))
-	t.Log(SecureRandomStringBytes(64, bytes2))
-	t.Log(SecureRandomStringBytes(64, bytes10))
-	t.Log(SecureRandomStringBytes(64, bytes16))
-	t.Log(SecureRandomStringBytes(64, bytes26))
-	t.Log(SecureRandomStringBytes(64, bytes32))
-	t.Log(SecureRandomStringBytes(64, bytes52))
-	t.Log(SecureRandomStringBytes(64, bytes62))
-	t.Log(SecureRandomStringBytes(64, bytes64))
+	for chars := 1; chars <= 256; chars++ {
+		bytes := []byte(strings.Repeat("x", chars))
+		for length := 0; length <= 128; length++ {
+			result := SecureRandomStringBytes(length, bytes)
+			if len(result) != length {
+				t.Errorf("Expecting length %d; Got: %d", length, len(result))
+			}
+		}
+	}
 }
 
 func TestSecureRandomStringRunes(t *testing.T) {
 	t.Parallel()
-	t.Log(SecureRandomStringRunes(64, runes1))
-	t.Log(SecureRandomStringRunes(64, runes2))
-	t.Log(SecureRandomStringRunes(64, runes10))
-	t.Log(SecureRandomStringRunes(64, runes16))
-	t.Log(SecureRandomStringRunes(64, runes26))
-	t.Log(SecureRandomStringRunes(64, runes32))
-	t.Log(SecureRandomStringRunes(64, runes52))
-	t.Log(SecureRandomStringRunes(64, runes62))
-	t.Log(SecureRandomStringRunes(64, runes64))
+	for chars := 1; chars <= 300; chars++ {
+		runes := []rune(strings.Repeat("x", chars))
+		for length := 0; length <= 128; length++ {
+			result := SecureRandomStringRunes(length, runes)
+			if len(result) != length {
+				t.Errorf("Expecting length %d; Got: %d", length, len(result))
+			}
+		}
+	}
 }
 
 func naiveSecureRandomStringChars(length int, availableCharBytes string) string {
