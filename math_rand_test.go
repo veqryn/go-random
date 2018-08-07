@@ -84,42 +84,100 @@ func TestPseudoRandomStringRunesRand(t *testing.T) {
 	}
 }
 
-func TestPseudoRandomHex(t *testing.T) {
-	t.Parallel()
-	random.PseudoRandomHex(0)
-}
-
-func TestPseudoRandomHexRand(t *testing.T) {
-	t.Parallel()
-	random.PseudoRandomHexRand(nil, 0)
-}
-
 func TestPseudoRandomBits(t *testing.T) {
 	t.Parallel()
-	random.PseudoRandomBits(0)
+	for length := 0; length <= 300; length++ {
+		result := random.PseudoRandomBits(length)
+		if len(result) != int(math.Ceil(float64(length)/64.0)) {
+			t.Errorf("Expecting length %d; Got: %d", length, len(result))
+		}
+	}
 }
 
 func TestPseudoRandomBitsRand(t *testing.T) {
 	t.Parallel()
-	random.PseudoRandomBitsRand(nil, 0)
+	source := rand.New(rand.NewSource(random.SecureRandomNumber(math.MinInt64, math.MaxInt64)))
+	for length := 0; length <= 300; length++ {
+		result := random.PseudoRandomBitsRand(source, length)
+		if len(result) != int(math.Ceil(float64(length)/64.0)) {
+			t.Errorf("Expecting length %d; Got: %d", length, len(result))
+		}
+	}
+}
+
+func TestPseudoRandomHex(t *testing.T) {
+	t.Parallel()
+	for length := 0; length <= 300; length++ {
+		result := random.PseudoRandomHex(length)
+		if len(result) != length {
+			t.Errorf("Expecting length %d; Got: %d", length, len(result))
+		}
+	}
+}
+
+func TestPseudoRandomHexRand(t *testing.T) {
+	t.Parallel()
+	source := rand.New(rand.NewSource(random.SecureRandomNumber(math.MinInt64, math.MaxInt64)))
+	for length := 0; length <= 300; length++ {
+		result := random.PseudoRandomHexRand(source, length)
+		if len(result) != length {
+			t.Errorf("Expecting length %d; Got: %d", length, len(result))
+		}
+	}
 }
 
 func TestPseudoRandomBytes(t *testing.T) {
 	t.Parallel()
-	random.PseudoRandomBytes(0)
+	for length := 0; length <= 300; length++ {
+		result := random.PseudoRandomBytes(length)
+		if len(result) != length {
+			t.Errorf("Expecting length %d; Got: %d", length, len(result))
+		}
+	}
 }
 
 func TestPseudoRandomBytesRand(t *testing.T) {
 	t.Parallel()
-	random.PseudoRandomBytesRand(nil, 0)
+	source := rand.New(rand.NewSource(random.SecureRandomNumber(math.MinInt64, math.MaxInt64)))
+	for length := 0; length <= 300; length++ {
+		result := random.PseudoRandomBytesRand(source, length)
+		if len(result) != length {
+			t.Errorf("Expecting length %d; Got: %d", length, len(result))
+		}
+	}
 }
 
 func TestPseudoRandomInt63(t *testing.T) {
 	t.Parallel()
-	random.PseudoRandomInt63(0, 0)
+	increment := int64(math.MaxInt64 / 10)
+	for min := int64(math.MinInt64); min < math.MaxInt64-increment; min += increment {
+		until := min + math.MaxInt64
+		if until <= min {
+			until = math.MaxInt64
+		}
+		for max := min + 1; max <= until-increment; max += increment {
+			num := random.PseudoRandomInt63(min, max)
+			if num < min || num >= max {
+				t.Errorf("Expected number in [%d, %d); Got: %d", min, max, num)
+			}
+		}
+	}
 }
 
 func TestPseudoRandomInt63Rand(t *testing.T) {
 	t.Parallel()
-	random.PseudoRandomInt63Rand(nil, 0, 0)
+	source := rand.New(rand.NewSource(random.SecureRandomNumber(math.MinInt64, math.MaxInt64)))
+	increment := int64(math.MaxInt64 / 10)
+	for min := int64(math.MinInt64); min < math.MaxInt64-increment; min += increment {
+		until := min + math.MaxInt64
+		if until <= min {
+			until = math.MaxInt64
+		}
+		for max := min + 1; max <= until-increment; max += increment {
+			num := random.PseudoRandomInt63Rand(source, min, max)
+			if num < min || num >= max {
+				t.Errorf("Expected number in [%d, %d); Got: %d", min, max, num)
+			}
+		}
+	}
 }

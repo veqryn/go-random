@@ -1,4 +1,6 @@
-// Package random ...
+// Package random contains a variety of utilities and helper functions for
+// both math/rand (Pseudo-Random Data) and crypto/rand (Cryptographically
+// Secure Random Data).
 package random
 
 const (

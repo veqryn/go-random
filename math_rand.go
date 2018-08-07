@@ -234,14 +234,20 @@ func PseudoRandomBitsRand(rand *rand.Rand, length int) []uint64 {
 // Uses the global math/rand instance, which locks on each call.
 // Not cryptographically secure.
 func PseudoRandomHex(length int) string {
-	return hex.EncodeToString(PseudoRandomBytes(length))
+	// Each byte has 2 hex values in it, so round length up and grab random data
+	randomBytes := PseudoRandomBytes(int(math.Ceil(float64(length) / 2.0)))
+	// Encode to hex and cut off the last hex if an odd length was requested
+	return hex.EncodeToString(randomBytes)[:length]
 }
 
 // PseudoRandomHexRand uses math/rand to return a slice of random hex data of a given length.
 // Allows passing in rand source to avoid locking or to use other RNG's.
 // Not cryptographically secure.
 func PseudoRandomHexRand(rand *rand.Rand, length int) string {
-	return hex.EncodeToString(PseudoRandomBytesRand(rand, length))
+	// Each byte has 2 hex values in it, so round length up and grab random data
+	randomBytes := PseudoRandomBytesRand(rand, int(math.Ceil(float64(length)/2.0)))
+	// Encode to hex and cut off the last hex if an odd length was requested
+	return hex.EncodeToString(randomBytes)[:length]
 }
 
 // PseudoRandomBytes uses math/rand to return the requested number of bytes.
@@ -275,7 +281,7 @@ func PseudoRandomInt63(minInclusive, maxExclusive int64) int64 {
 
 // PseudoRandomInt63Rand uses math/rand to return a 63-bit number between [minInclusive, maxExclusive).
 // Allows passing in rand source to avoid locking or to use other RNG's.
-// Not cryptographically secure. If max - min <= 0, this panics.
+// Not cryptographically secure. If max - min <= 0, or max - min overflows int64, this panics.
 func PseudoRandomInt63Rand(rand *rand.Rand, minInclusive, maxExclusive int64) int64 {
 	return rand.Int63n(maxExclusive-minInclusive) + minInclusive
 }
