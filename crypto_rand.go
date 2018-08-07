@@ -3,6 +3,7 @@ package random
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/hex"
 	"math"
 	"math/big"
 	"math/bits"
@@ -36,10 +37,10 @@ func (s secureRandSource) Seed(seed int64) {
 	// no-op
 }
 
-// SecureRandomString uses crypto/rand to return a random hex string of given length.
+// SecureRandomString uses crypto/rand to return a random url-safe base64 string of given length.
 // If length is negative this will panic.
 func SecureRandomString(length int) string {
-	return SecureRandomStringBytes(length, HexBytes)
+	return SecureRandomStringBytes(length, Base64URLBytes)
 }
 
 // SecureRandomStringBytes uses crypto/rand to return a random string of given
@@ -289,19 +290,25 @@ func SecureRandomBits(bitLength int, order binary.ByteOrder) []uint64 {
 // SecureRandomBitBlocks uses crypto/rand to return a slice of uint64 filled with random bit data,
 // using the byte order specified, as well as the number of usable bit blocks contained total.
 // usableBlockSize is the number of bits that will be consumed at a time
-// (for example, if using a mask to consume 3 bits at a time).
+// (for example, if using a mask to consume 3 bits at a time), and it must be in 1 - 64.
 // bitLength should be a multiple of both usableBlockSize and 8 (crypto/rand gives random byte data),
 // otherwise slightly more bits will be returned than requested.
-// For example, if 62 bitLength is requested, and the usableBlockSize is 5, then this function determines
+// For example, if 72 bitLength is requested, and the usableBlockSize is 5, then this function determines
 // that 12 blocks of 5 bits (60 bits) can be contained in each uint64. For the remaining 12 bits, it
 // rounds up to 15 bits (as a multiple of 5 usableBlockSize) then determines that it will need to pull
 // 2 bytes of random data (they only come in bytes) from crypto/rand to fulfill the remainder.
-// It will then return a []uint64 of length 2 containing 80 bits of random data, and also returns
-// the integer 75, which is the number of bits that are usable as determined by usableBlockSize.
+// It will then return a []uint64 of length 2 containing 80 bits of random data, of which 75 bits are
+// usable according to usableBlockSize. It also returns the integer 15, which is the number of usable
+// blocks of 5 bits as determined by usableBlockSize.
 // The binary.ByteOrder argument determines how the crypto/rand bytes get put into the []uint64.
 // Note that for the final uint64 in the slice, LittleEndian fills from the low bits
 // (right side) first, while BigEndian fills from the high bits (left side) first.
 func SecureRandomBitBlocks(bitLength, usableBlockSize int, order binary.ByteOrder) ([]uint64, int) {
+
+	// Check bit count usable block size is valid for uint64
+	if usableBlockSize < 1 || usableBlockSize > 64 {
+		panic("random: bit count usableBlockSize must be greater than zero and less than 65")
+	}
 
 	// indicesPerUint64 is how many different usable blocks of bits a single uint64 can contain
 	indicesPerUint64 := 64 / usableBlockSize
@@ -341,6 +348,14 @@ func SecureRandomBitBlocks(bitLength, usableBlockSize int, order binary.ByteOrde
 
 	// Return randomBits and the number of usable bit blocks it contains
 	return randomBits, indicesPerUint64*fullIndexByteCount + (8 * remainderByteCount / usableBlockSize)
+}
+
+// SecureRandomHex uses crypto/rand to return a slice of random hex data of a given length
+func SecureRandomHex(length int) string {
+	// Each byte has 2 hex values in it, so round length up and grab random data
+	randomBytes := SecureRandomBytes(int(math.Ceil(float64(length) / 2.0)))
+	// Encode to hex and cut off the last hex if an odd length was requested
+	return hex.EncodeToString(randomBytes)[:length]
 }
 
 // SecureRandomBytes uses crypto/rand to return a slice of random byte data of a given length

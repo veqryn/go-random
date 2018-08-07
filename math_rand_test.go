@@ -9,25 +9,6 @@ import (
 	"github.com/veqryn/go-random"
 )
 
-func BenchmarkPseudoRandomStringRunesRand(b *testing.B) {
-	b.ReportAllocs()
-	r := []rune(random.Alphabet)
-	source := rand.New(rand.NewSource(random.SecureRandomNumber(math.MinInt64, math.MaxInt64)))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		random.PseudoRandomStringRunesRand(source, 40, r)
-	}
-}
-
-func BenchmarkPseudoRandomStringBytesRand(b *testing.B) {
-	b.ReportAllocs()
-	source := rand.New(rand.NewSource(random.SecureRandomNumber(math.MinInt64, math.MaxInt64)))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		random.PseudoRandomStringBytesRand(source, 40, random.AlphabetBytes)
-	}
-}
-
 func TestPseudoRandomString(t *testing.T) {
 	t.Parallel()
 	for length := 0; length <= 128; length++ {
@@ -101,4 +82,44 @@ func TestPseudoRandomStringRunesRand(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestPseudoRandomHex(t *testing.T) {
+	t.Parallel()
+	random.PseudoRandomHex(0)
+}
+
+func TestPseudoRandomHexRand(t *testing.T) {
+	t.Parallel()
+	random.PseudoRandomHexRand(nil, 0)
+}
+
+func TestPseudoRandomBits(t *testing.T) {
+	t.Parallel()
+	random.PseudoRandomBits(0)
+}
+
+func TestPseudoRandomBitsRand(t *testing.T) {
+	t.Parallel()
+	random.PseudoRandomBitsRand(nil, 0)
+}
+
+func TestPseudoRandomBytes(t *testing.T) {
+	t.Parallel()
+	random.PseudoRandomBytes(0)
+}
+
+func TestPseudoRandomBytesRand(t *testing.T) {
+	t.Parallel()
+	random.PseudoRandomBytesRand(nil, 0)
+}
+
+func TestPseudoRandomInt63(t *testing.T) {
+	t.Parallel()
+	random.PseudoRandomInt63(0, 0)
+}
+
+func TestPseudoRandomInt63Rand(t *testing.T) {
+	t.Parallel()
+	random.PseudoRandomInt63Rand(nil, 0, 0)
 }

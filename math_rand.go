@@ -1,38 +1,25 @@
 package random
 
 import (
+	"encoding/hex"
 	"math"
 	"math/bits"
 	"math/rand"
 	"strings"
 )
 
-const (
-	Hex                   = "0123456789abcdef"
-	Alphabet              = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	AlphabetUpperAndLower = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-	AlphaNumeric          = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-)
-
-var (
-	HexBytes                   = []byte(Hex)
-	AlphabetBytes              = []byte(Alphabet)
-	AlphabetUpperAndLowerBytes = []byte(AlphabetUpperAndLower)
-	AlphaNumericBytes          = []byte(AlphaNumeric)
-)
-
-// PseudoRandomString uses math/rand to return a random hex string of given length.
+// PseudoRandomString uses math/rand to return a random url-safe base64 string of given length.
 // Uses the global math/rand instance, which locks on each call.
 // Not cryptographically secure.
 func PseudoRandomString(length int) string {
-	return pseudoRandomStringBytesBase(rand.Uint64, length, HexBytes)
+	return pseudoRandomStringBytesBase(rand.Uint64, length, Base64URLBytes)
 }
 
-// PseudoRandomStringRand uses math/rand to return a random hex string of given length.
+// PseudoRandomStringRand uses math/rand to return a random url-safe base64 string of given length.
 // Allows passing in rand source to avoid locking or to use other RNG's.
 // Not cryptographically secure.
 func PseudoRandomStringRand(rand *rand.Rand, length int) string {
-	return pseudoRandomStringBytesBase(rand.Uint64, length, HexBytes)
+	return pseudoRandomStringBytesBase(rand.Uint64, length, Base64URLBytes)
 }
 
 // PseudoRandomStringBytes uses math/rand to return a random string of given
@@ -214,7 +201,7 @@ func pseudoRandomStringRunesBase(randUint64 func() uint64, length int, available
 // PseudoRandomBits uses math/rand to return the requested number of bits as a uint64 slice.
 // Uses the global math/rand instance, which locks on each call.
 // Not cryptographically secure.
-func PseudoRandomBits(rand *rand.Rand, length int) []uint64 {
+func PseudoRandomBits(length int) []uint64 {
 
 	// How long should the uint64 slice be?
 	uint64Length := int(math.Ceil(float64(length) / 64))
@@ -243,6 +230,20 @@ func PseudoRandomBitsRand(rand *rand.Rand, length int) []uint64 {
 	return randomBits
 }
 
+// PseudoRandomHex uses math/rand to return a slice of random hex data of a given length.
+// Uses the global math/rand instance, which locks on each call.
+// Not cryptographically secure.
+func PseudoRandomHex(length int) string {
+	return hex.EncodeToString(PseudoRandomBytes(length))
+}
+
+// PseudoRandomHexRand uses math/rand to return a slice of random hex data of a given length.
+// Allows passing in rand source to avoid locking or to use other RNG's.
+// Not cryptographically secure.
+func PseudoRandomHexRand(rand *rand.Rand, length int) string {
+	return hex.EncodeToString(PseudoRandomBytesRand(rand, length))
+}
+
 // PseudoRandomBytes uses math/rand to return the requested number of bytes.
 // Uses the global math/rand instance, which locks on each call.
 // Not cryptographically secure.
@@ -268,13 +269,13 @@ func PseudoRandomBytesRand(rand *rand.Rand, length int) []byte {
 // PseudoRandomInt63 uses math/rand to return a 63-bit number between [minInclusive, maxExclusive).
 // Uses the global math/rand instance, which locks on each call.
 // Not cryptographically secure. If max - min <= 0, this panics.
-func PseudoRandomInt63(minInclusive int64, maxExclusive int64) int64 {
-	return rand.Int63n(maxExclusive-minInclusive) + maxExclusive
+func PseudoRandomInt63(minInclusive, maxExclusive int64) int64 {
+	return rand.Int63n(maxExclusive-minInclusive) + minInclusive
 }
 
 // PseudoRandomInt63Rand uses math/rand to return a 63-bit number between [minInclusive, maxExclusive).
 // Allows passing in rand source to avoid locking or to use other RNG's.
 // Not cryptographically secure. If max - min <= 0, this panics.
-func PseudoRandomInt63Rand(rand *rand.Rand, minInclusive int64, maxExclusive int64) int64 {
-	return rand.Int63n(maxExclusive-minInclusive) + maxExclusive
+func PseudoRandomInt63Rand(rand *rand.Rand, minInclusive, maxExclusive int64) int64 {
+	return rand.Int63n(maxExclusive-minInclusive) + minInclusive
 }

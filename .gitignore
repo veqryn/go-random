@@ -15,3 +15,6 @@
 
 # IDE's
 .idea/
+
+# Vendor
+vendor/
